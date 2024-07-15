@@ -67,14 +67,15 @@ class Bootstrap:
 
     def __enter__(self) -> Flask:
         app_pkg = importlib.import_module(self._app.import_name)
-        for view_obj in self._scan_views(app_pkg):
-            self._app.add_url_rule(
-                rule=view_obj.url_rule,
-                endpoint=view_obj.endpoint,
-                view_func=view_obj,
-                methods=view_obj.methods
-            )
-            _logger.info('Mount view %r on [%s]', view_obj, view_obj.url_rule)
+        with self._app.app_context():
+            for view_obj in self._scan_views(app_pkg):
+                self._app.add_url_rule(
+                    rule=view_obj.url_rule,
+                    endpoint=view_obj.endpoint,
+                    view_func=view_obj,
+                    methods=view_obj.methods
+                )
+                _logger.info('Mount view %r on [%s]', view_obj, view_obj.url_rule)
         return self._app
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:

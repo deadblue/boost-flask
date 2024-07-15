@@ -1,6 +1,6 @@
 __author__ = 'deadblue'
 
-from base import View, JsonView, HtmlView
+from .base import View, JsonView, HtmlView
 
 __all__ = [
     'View',

@@ -35,6 +35,7 @@ Homepage = "https://github.com/deadblue/bootflask"
 Repository = "https://github.com/deadblue/bootflask"
 
 [tool.hatch.build.targets.wheel]
-packages = [
-    'src/bookflask'
-]
+packages = [ "src/bootflask" ]
+
+[tool.hatch.build]
+directory = ".dist"

@@ -1,3 +1,7 @@
 __author__ = 'deadblue'
 
-__version__ = '0.0.1'
+from .bootstrap import Bootstrap
+
+__all__ = [
+    'Bootstrap'
+]

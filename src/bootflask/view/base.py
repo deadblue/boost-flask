@@ -1,6 +1,5 @@
 __author__ = 'deadblue'
 
-import inspect
 from abc import ABC, abstractmethod
 from typing import Any, Tuple
 

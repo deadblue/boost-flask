@@ -62,8 +62,6 @@ class Bootstrap:
                         yield self._op.lookup(member)
                 elif isinstance(member, BaseView):
                     yield member
-                else:
-                    _logger.debug('Skip non-view member: %s', name)
 
     def __enter__(self) -> Flask:
         app_pkg = importlib.import_module(self._app.import_name)
@@ -75,7 +73,7 @@ class Bootstrap:
                     view_func=view_obj,
                     methods=view_obj.methods
                 )
-                _logger.info('Mount view %r on [%s]', view_obj, view_obj.url_rule)
+                _logger.info('Mount view %r => [%s]', view_obj, view_obj.url_rule)
         return self._app
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:

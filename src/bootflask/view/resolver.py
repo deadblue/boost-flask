@@ -4,6 +4,7 @@ import inspect
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Type, TypeVar
+from types import UnionType, NoneType
 
 from flask import request
 
@@ -18,11 +19,16 @@ def _snake_to_camel(name: str) -> str:
     if len(parts) == 1:
         return name
     return ''.join(map(
-        lambda p:p.capitalize(), parts
+        lambda p:p[1] if p[0] == 0 else p[1].capitalize(),
+        enumerate(parts)
     ))
 
 
 def _cast_value(str_val: str, val_type: Type[T]) -> T:
+    if isinstance(val_type, UnionType):
+        for inner_type in val_type.__args__:
+            if inner_type is NoneType: continue
+            return _cast_value(str_val, inner_type)
     if str_val is None:
         return None
     if val_type is None or val_type is str:
@@ -106,6 +112,6 @@ class StandardArgsResolver(ArgsResolver):
             if ha.name in request.values:
                 arg_value = request.values.get(ha.name)
             elif ha.alias in request.values:
-                arg_value = request.values.get(ha.name)
+                arg_value = request.values.get(ha.alias)
             if arg_value is not None:
                 call_args[ha.name] = _cast_value(arg_value, ha.type_)

@@ -30,11 +30,7 @@ class BaseView(ABC):
     """
 
     @abstractmethod
-    def __is_view__(self) -> None: 
-        """
-        __is_view__ is an abstract method on BaseView, which makes BaseView to 
-        be an abstract class. Sub classes should override it.
-        """
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         pass
 
 
@@ -57,8 +53,6 @@ class View(BaseView, ABC):
         # Use full class name as endpoint
         cls = type(self)
         self.endpoint = f'{cls.__module__}_{cls.__name__}'.replace('.', '_')
-
-    def __is_view__(self) -> None: pass
 
     def __call__(self, *args: Any, **kwargs: Any) -> Response:
         call_args = self._arg_resolver.resolve(*args, **kwargs)

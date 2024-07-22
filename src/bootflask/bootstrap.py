@@ -4,12 +4,13 @@ import importlib
 import inspect
 import logging
 import pkgutil
-from typing import Generator
+from typing import Generator, Union
 from types import ModuleType
 
 from flask import Flask
 
 from ._pool import ObjectPool
+from .config import ConfigType, _config_var
 from .view.base import BaseView
 
 
@@ -22,13 +23,21 @@ class Bootstrap:
     """
 
     _app: Flask
+    _conf: Union[ConfigType, None]
     _op: ObjectPool
 
     def __init__(
             self, 
-            app: Flask
+            app: Flask,
+            conf: Union[ConfigType, None] = None
         ) -> None:
+        """
+        Args:
+            app (Flask): Flask app.
+            conf (ConfigType | None): Configuration for app.
+        """
         self._app = app
+        self._conf = conf
         self._op = ObjectPool()
 
     def _scan_views(self, pkg: ModuleType) -> Generator[BaseView, None, None]:
@@ -59,11 +68,14 @@ class Bootstrap:
                     if inspect.isabstract(member): continue
                     # Instantiate view and yield it
                     if issubclass(member, BaseView):
-                        yield self._op.lookup(member)
+                        yield self._op.get(member)
                 elif isinstance(member, BaseView):
                     yield member
 
     def __enter__(self) -> Flask:
+        # Push config
+        if self._conf is not None:
+            _config_var.set(self._conf)
         app_pkg = importlib.import_module(self._app.import_name)
         with self._app.app_context():
             for view_obj in self._scan_views(app_pkg):

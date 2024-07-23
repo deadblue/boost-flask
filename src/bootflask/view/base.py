@@ -5,7 +5,9 @@ from typing import Any, Tuple
 
 from flask import Response
 
-from .renderer import Renderer, json, html
+from .renderer import (
+    RendererType, json, html
+)
 from .resolver import ArgsResolver, StandardArgsResolver
 
 
@@ -37,12 +39,12 @@ class BaseView(ABC):
 class View(BaseView, ABC):
 
     _arg_resolver: ArgsResolver
-    _renderer: Renderer
+    _renderer: RendererType
 
     def __init__(
             self, 
             url_rule: str,
-            renderer: Renderer,
+            renderer: RendererType,
             methods: Tuple[str] = None,
         ) -> None:
         self.url_rule = url_rule
@@ -57,7 +59,7 @@ class View(BaseView, ABC):
     def __call__(self, *args: Any, **kwargs: Any) -> Response:
         call_args = self._arg_resolver.resolve(*args, **kwargs)
         result = self.handle(**call_args)
-        return self._renderer.render(result)
+        return self._renderer(result)
 
     @abstractmethod
     def handle(self, *args: Any, **kwargs: Any) -> Any: pass

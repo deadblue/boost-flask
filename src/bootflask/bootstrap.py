@@ -9,8 +9,8 @@ from types import ModuleType
 
 from flask import Flask
 
-from ._pool import ObjectPool
 from .config import ConfigType, _config_var
+from .pool import ObjectPool
 from .view.base import BaseView
 
 

@@ -79,11 +79,12 @@ class Bootstrap:
         app_pkg = importlib.import_module(self._app.import_name)
         with self._app.app_context():
             for view_obj in self._scan_views(app_pkg):
+                http_methods = view_obj.methods or ('GET', 'POST')
                 self._app.add_url_rule(
                     rule=view_obj.url_rule,
                     endpoint=view_obj.endpoint,
                     view_func=view_obj,
-                    methods=view_obj.methods
+                    methods=http_methods
                 )
                 _logger.info('Mount view %r => [%s]', view_obj, view_obj.url_rule)
         return self._app

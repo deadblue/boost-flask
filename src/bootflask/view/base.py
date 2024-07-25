@@ -1,7 +1,7 @@
 __author__ = 'deadblue'
 
 from abc import ABC, abstractmethod
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 from flask import Response
 
@@ -26,7 +26,7 @@ class BaseView(ABC):
     Endpoint name for the view.
     """
 
-    methods: Tuple[str]
+    methods: Optional[Tuple[str]]
     """
     Allows request methods.
     """
@@ -45,10 +45,10 @@ class View(BaseView, ABC):
             self, 
             url_rule: str,
             renderer: RendererType,
-            methods: Tuple[str] = None,
+            methods: Optional[Tuple[str]] = None
         ) -> None:
         self.url_rule = url_rule
-        self.methods = methods or ('GET',)
+        self.methods = methods
         self._renderer = renderer
         self._arg_resolver = StandardArgsResolver(self.handle)
 
@@ -67,7 +67,11 @@ class View(BaseView, ABC):
 
 class JsonView(View, ABC):
 
-    def __init__(self, url_rule: str, methods: Tuple[str] = None) -> None:
+    def __init__(
+            self, 
+            url_rule: str, 
+            methods: Optional[Tuple[str]] = None,
+        ) -> None:
         super().__init__(
             url_rule=url_rule, 
             renderer=json, 
@@ -77,7 +81,12 @@ class JsonView(View, ABC):
 
 class HtmlView(View, ABC):
     
-    def __init__(self, url_rule: str, template_name: str, methods: Tuple[str] = None) -> None:
+    def __init__(
+            self, 
+            url_rule: str, 
+            template_name: str, 
+            methods: Optional[Tuple[str]] = None
+        ) -> None:
         super().__init__(
             url_rule=url_rule, 
             renderer=html(template_name),

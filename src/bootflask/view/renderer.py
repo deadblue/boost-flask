@@ -1,56 +1,28 @@
 __author__ = 'deadblue'
 
 import json as jsonlib
-from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Callable
 
 from flask import Response, render_template
 
 
-class Renderer(ABC):
+RendererType = Callable[[Any], Response]
+
+
+def json(result: Any) -> Response:
     """
-    BaseRenderer is base class for all Renderer classes, user's custom renderer
-    should be derived from this class.
+    JSON renderer
     """
-
-    @abstractmethod
-    def render(self, result: Any) -> Response:
-        """
-        Render result from handler function to a `flask.Response` object.
-
-        Args:
-            result (Any): The returned value from handler function in view.
-        
-        Returns:
-            Response: Flask response object.
-        """
-        pass
+    resp_body = jsonlib.dumps(result)
+    resp = Response(resp_body, status=200)
+    resp.headers.update({
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': len(resp_body)
+    })
+    return resp
 
 
-class JsonRenderer(Renderer):
-    """
-    JsonRenderer renders handler's result to JSON response.
-    """
-
-    def render(self, result: Any) -> Response:
-        resp_body = jsonlib.dumps(result)
-        resp = Response(resp_body, status=200)
-        resp.headers.update({
-            'Content-Type': 'application/json; charset=utf-8',
-            'Content-Length': len(resp_body)
-        })
-        return resp
-
-
-json = JsonRenderer()
-"""
-A JsonRenderer instance.
-
-User should always use it instead of calling JsonRenderer().
-"""
-
-
-class TemplateRenderer(Renderer):
+class TemplateRenderer:
 
     _template_name: str
     _mime_type: str
@@ -68,7 +40,7 @@ class TemplateRenderer(Renderer):
         self._template_name = template_name
         self._mime_type = mime_type
 
-    def render(self, result: Any) -> Response:
+    def __call__(self, result: Any) -> Response:
         resp_body = render_template(self._template_name, **result)
         resp = Response(resp_body, status=200)
         resp.headers.update({

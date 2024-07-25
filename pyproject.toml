@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bootflask"
+name = "boot-flask"
 dynamic = ["version"]
 description = "A web app framework base on flask."
 readme = "README.md"

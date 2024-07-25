@@ -1,4 +1,4 @@
-# BootFlask
+# BoostFlask
 
 Say goodbye to `app.add_url_rule` or `@app.route`.
 
@@ -12,9 +12,9 @@ Say goodbye to `app.add_url_rule` or `@app.route`.
 
 ```bash
 # Install master version
-pip install git+https://github.com/deadblue/bootflask.git@master
+pip install git+https://github.com/deadblue/boost-flask.git@master
 # Or install develop version
-# pip install git+https://github.com/deadblue/bootflask.git@develop
+# pip install git+https://github.com/deadblue/boost-flask.git@develop
 ```
 
 ## Example

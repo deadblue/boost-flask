@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 ConfigType = Dict[str, Any]
 
-_config_var = ContextVar[ConfigType]('bootflask.config')
+_config_var = ContextVar[ConfigType]('boostflask.config')
 
 
 def get_value(name: str, def_value: Any = None) -> Any:

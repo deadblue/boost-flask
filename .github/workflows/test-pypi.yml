@@ -3,7 +3,7 @@ name: Publish Python Package
 on:
   push:
     branches:
-      - master
+      - develop
 
 permissions:
   contents: read
@@ -34,9 +34,7 @@ jobs:
     needs: 
       - build
     runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/boot-flask
+    environment: test-pypi
     permissions:
       id-token: write
     steps:
@@ -49,3 +47,5 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
+        skip-existing: true
+        verbose: true

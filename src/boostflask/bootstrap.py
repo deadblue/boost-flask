@@ -9,7 +9,9 @@ from types import ModuleType
 
 from flask import Flask
 
-from .config import ConfigType, _config_var
+from .config import (
+    ConfigType, put as put_config
+)
 from .pool import ObjectPool
 from .view.base import BaseView
 from ._utils import prepend_slash
@@ -26,9 +28,17 @@ def _is_private_model(model_name: str) -> bool:
 
 
 class Bootstrap:
+    """Flask app bootstrap.
+
+    Args:
+        app (Flask): Flask app.
+        app_conf (ConfigType | None): Configuration for app.
+        url_prefix (str | None): URL prefix for all views.
+    """
 
     _op: ObjectPool
     _app: Flask
+
     _app_conf: Union[ConfigType, None] = None
     _url_prefix: Union[str, None] = None
 
@@ -38,16 +48,6 @@ class Bootstrap:
             app_conf: Union[ConfigType, None] = None,
             url_prefix: Union[str, None] = None,
         ) -> None:
-        """
-        Bootstrap a flask app.
-
-        Args:
-            app (Flask): Flask app.
-        
-        Keyword Args:
-            conf (ConfigType | None): Configuration for app.
-            url_prefix (str | None): URL prefix for all views.
-        """
         self._op = ObjectPool()
         self._app = app
 
@@ -86,7 +86,7 @@ class Bootstrap:
     def __enter__(self) -> Flask:
         # Push config
         if self._app_conf is not None:
-            _config_var.set(self._app_conf)
+            put_config(self._app_conf)
         app_pkg = importlib.import_module(self._app.import_name)
         with self._app.app_context():
             for view_obj in self._scan_views(app_pkg):

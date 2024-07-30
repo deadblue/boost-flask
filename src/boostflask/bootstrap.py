@@ -4,7 +4,7 @@ import importlib
 import inspect
 import logging
 import pkgutil
-from typing import Generator, Union
+from typing import Generator, Tuple, Union
 from types import ModuleType
 
 from flask import Flask
@@ -16,6 +16,8 @@ from .pool import ObjectPool
 from .view.base import BaseView
 from ._utils import prepend_slash
 
+
+_MAGIC_ATTR_URL_PREFIX = 'url_prefix'
 
 _logger = logging.getLogger(__name__)
 
@@ -55,7 +57,7 @@ class Bootstrap:
         if url_prefix is not None and url_prefix != '':
             self._url_prefix = prepend_slash(url_prefix)
 
-    def _scan_views(self, pkg: ModuleType) -> Generator[BaseView, None, None]:
+    def _scan_views(self, pkg: ModuleType) -> Generator[Tuple[Union[str, None], BaseView], None, None]:
         _logger.debug('Scanning views under package: %s', pkg.__name__)
         for mi in pkgutil.walk_packages(
             path=pkg.__path__,
@@ -79,9 +81,12 @@ class Bootstrap:
                     if inspect.isabstract(member): continue
                     # Instantiate view and yield it
                     if issubclass(member, BaseView):
-                        yield self._op.get(member)
+                        view_obj = self._op.get(member)
+                        mdl_url_prefix = getattr(mdl, _MAGIC_ATTR_URL_PREFIX, None)
+                        yield (mdl_url_prefix, view_obj)
                 elif isinstance(member, BaseView):
-                    yield member
+                    mdl_url_prefix = getattr(mdl, _MAGIC_ATTR_URL_PREFIX, None)
+                    yield (mdl_url_prefix, member)
 
     def __enter__(self) -> Flask:
         # Push config
@@ -89,10 +94,12 @@ class Bootstrap:
             put_config(self._app_conf)
         app_pkg = importlib.import_module(self._app.import_name)
         with self._app.app_context():
-            for view_obj in self._scan_views(app_pkg):
+            for mdl_url_prefix, view_obj in self._scan_views(app_pkg):
                 http_methods = view_obj.methods or ('GET', 'POST')
                 # Add url prefix
                 url_rule = prepend_slash(view_obj.url_rule)
+                if mdl_url_prefix is not None:
+                    url_rule = f'{prepend_slash(mdl_url_prefix)}{url_rule}'
                 if self._url_prefix is not None:
                     url_rule = f'{self._url_prefix}{url_rule}'
                 # Register to app

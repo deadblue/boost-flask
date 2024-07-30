@@ -8,6 +8,8 @@ ConfigType = Dict[str, Any]
 
 _config_var = ContextVar[ConfigType]('boostflask.config')
 
+def put(value: ConfigType):
+    _config_var.set(value)
 
 def get_value(name: str, def_value: Any = None) -> Any:
     """

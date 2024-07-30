@@ -3,7 +3,9 @@ __author__ = 'deadblue'
 import inspect
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Type, TypeVar
+from typing import (
+    Any, Callable, Dict, List, Type, TypeVar, Union
+)
 from types import UnionType, NoneType
 
 from flask import request
@@ -24,7 +26,10 @@ def _snake_to_camel(name: str) -> str:
     ))
 
 
-def _cast_value(str_val: str, val_type: Type[T]) -> T:
+def _cast_value(
+        str_val: Union[str, None], 
+        val_type: Union[Type[T], UnionType]
+    ) -> Union[T, None]:
     if isinstance(val_type, UnionType):
         for inner_type in val_type.__args__:
             if inner_type is NoneType: continue

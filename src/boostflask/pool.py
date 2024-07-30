@@ -112,3 +112,5 @@ class ObjectPool:
                 close_method()
             except:
                 _logger.warning('Call close failed for object: %s', name)
+        # Remove all objects
+        self._registry.clear()

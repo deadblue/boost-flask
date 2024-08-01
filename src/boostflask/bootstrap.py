@@ -95,7 +95,6 @@ class Bootstrap:
         app_pkg = importlib.import_module(self._app.import_name)
         with self._app.app_context():
             for mdl_url_prefix, view_obj in self._scan_views(app_pkg):
-                http_methods = view_obj.methods or ('GET', 'POST')
                 # Add url prefix
                 url_rule = prepend_slash(view_obj.url_rule)
                 if mdl_url_prefix is not None:
@@ -107,7 +106,7 @@ class Bootstrap:
                     rule=url_rule,
                     endpoint=view_obj.endpoint,
                     view_func=view_obj,
-                    methods=http_methods
+                    methods=view_obj.methods
                 )
                 _logger.info('Mount view %r => [%s]', view_obj, url_rule)
         return self._app

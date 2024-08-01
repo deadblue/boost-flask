@@ -1,14 +1,18 @@
 __author__ = 'deadblue'
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Tuple
+from typing import (
+    Any, ClassVar, Optional, Tuple, Type
+)
 
 from flask import Response
 
 from .renderer import (
     RendererType, json, html
 )
-from .resolver import ArgsResolver, StandardArgsResolver
+from .resolver import (
+    Resolver, StandardResolver
+)
 
 
 class BaseView(ABC):
@@ -26,7 +30,7 @@ class BaseView(ABC):
     Endpoint name for the view.
     """
 
-    methods: Optional[Tuple[str]]
+    methods: Tuple[str]
     """
     Allows request methods.
     """
@@ -38,7 +42,12 @@ class BaseView(ABC):
 
 class View(BaseView, ABC):
 
-    _arg_resolver: ArgsResolver
+    resolver_class: ClassVar[Type[Resolver]] = StandardResolver
+    """
+    Resolver class
+    """
+
+    _resolver: Resolver
     _renderer: RendererType
 
     def __init__(
@@ -48,16 +57,17 @@ class View(BaseView, ABC):
             methods: Optional[Tuple[str]] = None
         ) -> None:
         self.url_rule = url_rule
-        self.methods = methods
+        self.methods = methods or ('GET', 'POST')
         self._renderer = renderer
-        self._arg_resolver = StandardArgsResolver(self.handle)
+
+        self._resolver = self.resolver_class(self.handle)
 
         # Use full class name as endpoint
         cls = type(self)
         self.endpoint = f'{cls.__module__}_{cls.__name__}'.replace('.', '_')
 
     def __call__(self, *args: Any, **kwargs: Any) -> Response:
-        call_args = self._arg_resolver.resolve(*args, **kwargs)
+        call_args = self._resolver.resolve_args(*args, **kwargs)
         result = self.handle(**call_args)
         return self._renderer(result)
 

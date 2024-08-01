@@ -52,10 +52,10 @@ def _cast_value(
     return None
 
 
-class ArgsResolver(ABC):
+class Resolver(ABC):
 
     @abstractmethod
-    def resolve(self, *args, **kwargs) -> Dict[str, Any]: pass
+    def resolve_args(self, *args, **kwargs) -> Dict[str, Any]: pass
 
 
 class _HandlerArg:
@@ -70,7 +70,7 @@ class _HandlerArg:
         self.type_ = type_
 
 
-class StandardArgsResolver(ArgsResolver):
+class StandardResolver(Resolver):
 
     _handler_args: List[_HandlerArg]
     _handler_args_count: int
@@ -86,7 +86,7 @@ class StandardArgsResolver(ArgsResolver):
             ))
         self._handler_args_count = len(self._handler_args)
 
-    def resolve(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+    def resolve_args(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
         # Fast-path
         if self._handler_args_count == 0:
             return {}

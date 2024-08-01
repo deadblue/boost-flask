@@ -13,6 +13,11 @@ from flask import request
 
 T = TypeVar('T')
 
+_FORM_MIME_TYPES = (
+    'application/x-www-form-urlencoded', 
+    'multipart/form-data'
+)
+
 _logger = logging.getLogger(__name__)
 
 
@@ -109,14 +114,25 @@ class StandardArgsResolver(ArgsResolver):
         return call_args
 
     def _resolve_args_from_request(self, call_args: Dict[str, Any], skip_count:int):
+        # Parse HTTP form
+        form = request.form if request.mimetype in _FORM_MIME_TYPES else {}
+        # Fill call args
         for ha in self._handler_args[skip_count:]:
             # Skip already set argument
             if ha.name in call_args: continue
             # Find argument from request
             arg_value = None
-            if ha.name in request.values:
-                arg_value = request.values.get(ha.name)
-            elif ha.alias in request.values:
-                arg_value = request.values.get(ha.alias)
+            # Search argument from querystring
+            if ha.name in request.args:
+                arg_value = request.args.get(ha.name)
+            # Search argument alias from querystring
+            elif ha.alias in request.args:
+                arg_value = request.args.get(ha.alias)
+            # Search argument from HTTP form
+            if ha.name in form:
+                arg_value = form.get(ha.name)
+            # Search argument alias from HTTP form
+            elif ha.alias in form:
+                arg_value = form.get(ha.alias)
             if arg_value is not None:
                 call_args[ha.name] = _cast_value(arg_value, ha.type_)

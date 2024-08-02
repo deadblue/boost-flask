@@ -13,9 +13,11 @@ from flask import request
 
 T = TypeVar('T')
 
+_MIME_TYPE_URLENCODED_FORM = 'application/x-www-form-urlencoded'
+_MIME_TYPE_MULTIPART_FORM = 'multipart/form-data'
 _FORM_MIME_TYPES = (
-    'application/x-www-form-urlencoded', 
-    'multipart/form-data'
+    _MIME_TYPE_URLENCODED_FORM,
+    _MIME_TYPE_MULTIPART_FORM
 )
 
 _logger = logging.getLogger(__name__)
@@ -92,6 +94,7 @@ class StandardResolver(Resolver):
             return {}
         # Resolve args from invoking arguments
         call_args = {}
+        # Process positional arguments
         positional_args_count = 0
         if args is not None and len(args) > 0:
             positional_args_count = len(args)
@@ -104,12 +107,13 @@ class StandardResolver(Resolver):
             for index in range(positional_args_count):
                 ha = self._handler_args[index]
                 call_args[ha.name] = args[index]
+        # Process keyword arguments
         if kwargs is not None and positional_args_count < self._handler_args_count:
             for ha in self._handler_args[positional_args_count:]:
                 if ha.name in kwargs:
                     call_args[ha.name] = kwargs.get(ha.name)
+        # Resolve missed arguments from request
         if len(call_args) != self._handler_args_count:
-            # Resolve arguments from request
             self._resolve_args_from_request(call_args, positional_args_count)
         return call_args
 
@@ -136,3 +140,4 @@ class StandardResolver(Resolver):
                 arg_value = form.get(ha.alias)
             if arg_value is not None:
                 call_args[ha.name] = _cast_value(arg_value, ha.type_)
+        # TODO: Support files & json

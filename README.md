@@ -12,7 +12,7 @@ Say goodbye to `app.add_url_rule` or `@app.route`.
 
 ```bash
 # Install master version
-pip install git+https://github.com/deadblue/boost-flask.git@master
+pip install boost-flask
 # Or install develop version
 # pip install git+https://github.com/deadblue/boost-flask.git@develop
 ```

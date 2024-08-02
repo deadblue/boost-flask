@@ -13,6 +13,13 @@ from flask import request
 
 T = TypeVar('T')
 
+_MIME_TYPE_URLENCODED_FORM = 'application/x-www-form-urlencoded'
+_MIME_TYPE_MULTIPART_FORM = 'multipart/form-data'
+_FORM_MIME_TYPES = (
+    _MIME_TYPE_URLENCODED_FORM,
+    _MIME_TYPE_MULTIPART_FORM
+)
+
 _logger = logging.getLogger(__name__)
 
 
@@ -47,10 +54,10 @@ def _cast_value(
     return None
 
 
-class ArgsResolver(ABC):
+class Resolver(ABC):
 
     @abstractmethod
-    def resolve(self, *args, **kwargs) -> Dict[str, Any]: pass
+    def resolve_args(self, *args, **kwargs) -> Dict[str, Any]: pass
 
 
 class _HandlerArg:
@@ -65,7 +72,7 @@ class _HandlerArg:
         self.type_ = type_
 
 
-class StandardArgsResolver(ArgsResolver):
+class StandardResolver(Resolver):
 
     _handler_args: List[_HandlerArg]
     _handler_args_count: int
@@ -81,12 +88,13 @@ class StandardArgsResolver(ArgsResolver):
             ))
         self._handler_args_count = len(self._handler_args)
 
-    def resolve(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+    def resolve_args(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
         # Fast-path
         if self._handler_args_count == 0:
             return {}
         # Resolve args from invoking arguments
         call_args = {}
+        # Process positional arguments
         positional_args_count = 0
         if args is not None and len(args) > 0:
             positional_args_count = len(args)
@@ -99,24 +107,37 @@ class StandardArgsResolver(ArgsResolver):
             for index in range(positional_args_count):
                 ha = self._handler_args[index]
                 call_args[ha.name] = args[index]
+        # Process keyword arguments
         if kwargs is not None and positional_args_count < self._handler_args_count:
             for ha in self._handler_args[positional_args_count:]:
                 if ha.name in kwargs:
                     call_args[ha.name] = kwargs.get(ha.name)
+        # Resolve missed arguments from request
         if len(call_args) != self._handler_args_count:
-            # Resolve arguments from request
             self._resolve_args_from_request(call_args, positional_args_count)
         return call_args
 
     def _resolve_args_from_request(self, call_args: Dict[str, Any], skip_count:int):
+        # Parse HTTP form
+        form = request.form if request.mimetype in _FORM_MIME_TYPES else {}
+        # Fill call args
         for ha in self._handler_args[skip_count:]:
             # Skip already set argument
             if ha.name in call_args: continue
             # Find argument from request
             arg_value = None
-            if ha.name in request.values:
-                arg_value = request.values.get(ha.name)
-            elif ha.alias in request.values:
-                arg_value = request.values.get(ha.alias)
+            # Search argument from querystring
+            if ha.name in request.args:
+                arg_value = request.args.get(ha.name)
+            # Search argument alias from querystring
+            elif ha.alias in request.args:
+                arg_value = request.args.get(ha.alias)
+            # Search argument from HTTP form
+            if ha.name in form:
+                arg_value = form.get(ha.name)
+            # Search argument alias from HTTP form
+            elif ha.alias in form:
+                arg_value = form.get(ha.alias)
             if arg_value is not None:
                 call_args[ha.name] = _cast_value(arg_value, ha.type_)
+        # TODO: Support files & json

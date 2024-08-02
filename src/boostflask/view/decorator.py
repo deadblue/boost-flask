@@ -35,7 +35,7 @@ class _FunctionView(BaseView):
 
 
 def _make_endpoint_name(func: Callable) -> str:
-    return f'{func.__module__}.{func.__qualname__}'.replace('.', '+')
+    return f'{func.__module__}.{func.__qualname__}'.replace('.', '_')
 
 
 def as_view(

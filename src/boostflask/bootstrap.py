@@ -1,11 +1,13 @@
 __author__ = 'deadblue'
 
-import importlib
 import inspect
 import logging
 import pkgutil
-from typing import Generator, Tuple, Union
+from typing import (
+    Dict, Generator, Tuple, Union
+)
 from types import ModuleType
+
 
 from flask import Flask
 
@@ -14,19 +16,39 @@ from .config import (
 )
 from .pool import ObjectPool
 from .view.base import BaseView
-from ._utils import prepend_slash
+from ._utils import (
+    is_private_module,
+    load_module,
+    get_parent_module,
+    join_url_paths
+)
 
-
-_MAGIC_ATTR_URL_PREFIX = 'url_prefix'
 
 _logger = logging.getLogger(__name__)
 
 
-def _is_private_model(model_name: str) -> bool:
-    for part in reversed(model_name.split('.')):
-        if part.startswith('_'):
-            return True
-    return False
+_MAGIC_URL_PATH = '__url_path__'
+
+_module_url_path_cache: Dict[str, str] = {}
+
+def _get_url_path(mdl: ModuleType) -> str:
+    # Get from cache
+    cache_key = mdl.__name__
+    if cache_key in _module_url_path_cache:
+        return _module_url_path_cache.get(cache_key)
+    # Collect paths from modules
+    paths = []
+    m = mdl
+    while m is not None:
+        url_path = getattr(m, _MAGIC_URL_PATH, None)
+        if url_path is not None:
+            paths.append(url_path)
+        m = get_parent_module(m)
+    # Join paths
+    url_path = join_url_paths(reversed(paths)) if len(paths) > 0 else ''
+    # Put to cache
+    _module_url_path_cache[cache_key] = url_path
+    return url_path
 
 
 class Bootstrap:
@@ -54,19 +76,19 @@ class Bootstrap:
         self._app = app
 
         self._app_conf = app_conf
-        if url_prefix is not None and url_prefix != '':
-            self._url_prefix = prepend_slash(url_prefix)
+        if url_prefix is not None:
+            self._url_prefix = url_prefix
 
-    def _scan_views(self, pkg: ModuleType) -> Generator[Tuple[Union[str, None], BaseView], None, None]:
+    def _scan_views(self, pkg: ModuleType) -> Generator[Tuple[str, BaseView], None, None]:
         _logger.debug('Scanning views under package: %s', pkg.__name__)
         for mi in pkgutil.walk_packages(
             path=pkg.__path__,
             prefix=f'{pkg.__name__}.'
         ):
-            # Skip private model
-            if _is_private_model(mi.name): continue
+            # Skip private module
+            if is_private_module(mi.name): continue
             # Load module
-            mdl = importlib.import_module(mi.name)
+            mdl = load_module(mi.name)
             _logger.debug('Scanning views under module: %s', mi.name)
             for name, member in inspect.getmembers(mdl):
                 # Skip private member
@@ -82,25 +104,23 @@ class Bootstrap:
                     # Instantiate view and yield it
                     if issubclass(member, BaseView):
                         view_obj = self._op.get(member)
-                        mdl_url_prefix = getattr(mdl, _MAGIC_ATTR_URL_PREFIX, None)
-                        yield (mdl_url_prefix, view_obj)
+                        yield (_get_url_path(mdl), view_obj)
                 elif isinstance(member, BaseView):
-                    mdl_url_prefix = getattr(mdl, _MAGIC_ATTR_URL_PREFIX, None)
-                    yield (mdl_url_prefix, member)
+                    yield (_get_url_path(mdl), member)
 
     def __enter__(self) -> Flask:
         # Push config
         if self._app_conf is not None:
             put_config(self._app_conf)
-        app_pkg = importlib.import_module(self._app.import_name)
+        app_pkg = load_module(self._app.import_name)
         with self._app.app_context():
-            for mdl_url_prefix, view_obj in self._scan_views(app_pkg):
-                # Add url prefix
-                url_rule = prepend_slash(view_obj.url_rule)
-                if mdl_url_prefix is not None:
-                    url_rule = f'{prepend_slash(mdl_url_prefix)}{url_rule}'
-                if self._url_prefix is not None:
-                    url_rule = f'{self._url_prefix}{url_rule}'
+            for mdl_url_path, view_obj in self._scan_views(app_pkg):
+                # Full URL rule
+                url_rule = join_url_paths([
+                    mdl_url_path,  view_obj.url_rule
+                ] if self._url_prefix is None else [
+                    self._url_prefix, mdl_url_path,  view_obj.url_rule
+                ])
                 # Register to app
                 self._app.add_url_rule(
                     rule=url_rule,

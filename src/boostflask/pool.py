@@ -2,7 +2,10 @@ __author__ = 'deadblue'
 
 import inspect
 import logging
-from typing import Any, Dict, Sequence, Type, TypeVar, Union
+from typing import (
+    Any, Dict, Protocol, Sequence, Type, TypeVar, Union, 
+    runtime_checkable
+)
 
 from ._utils import get_class_name
 
@@ -23,6 +26,12 @@ class CircularReferenceError(Exception):
 
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+
+
+@runtime_checkable
+class Closeable(Protocol):
+
+    def close(self) -> None: pass
 
 
 class ObjectPool:
@@ -105,12 +114,10 @@ class ObjectPool:
 
     def close(self):
         for name, obj in self._registry.items():
-            close_method = getattr(obj, 'close', None)
-            if close_method is None or not inspect.ismethod(close_method):
-                continue
-            try:
-                close_method()
-            except:
-                _logger.warning('Call close failed for object: %s', name)
+            if isinstance(obj, Closeable):
+                try:
+                    obj.close()
+                except:
+                    _logger.warning('Close object %s failed ...', name)
         # Remove all objects
         self._registry.clear()

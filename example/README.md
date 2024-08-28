@@ -1,6 +1,6 @@
-# BoostFlask Example Project
+# BoostFlask Demo Project
 
-An example to show BoostFlask features.
+A demo project to show BoostFlask features.
 
 After run main.py, follow URL can be accessed:
 

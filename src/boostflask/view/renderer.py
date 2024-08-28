@@ -41,7 +41,7 @@ class TemplateRenderer:
         self._mime_type = mime_type
 
     def __call__(self, result: Any) -> Response:
-        resp_body = render_template(self._template_name, **result)
+        resp_body = render_template(self._template_name, **result).encode()
         resp = Response(resp_body, status=200)
         resp.headers.update({
             'Content-Type': self._mime_type,

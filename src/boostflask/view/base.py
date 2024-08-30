@@ -2,13 +2,16 @@ __author__ = 'deadblue'
 
 from abc import ABC, abstractmethod
 from typing import (
-    Any, ClassVar, Optional, Tuple, Type
+    Any, ClassVar, Tuple, Type
 )
 
 from flask import Response
 
 from .renderer import (
-    RendererType, json, html
+    RendererType, 
+    default as default_renderer, 
+    json as json_renderer, 
+    html as make_html_renderer
 )
 from .resolver import (
     Resolver, StandardResolver
@@ -17,7 +20,7 @@ from .resolver import (
 
 class BaseView(ABC):
     """
-    BaseView is base class View & FunctionView class.
+    BaseView is the parent class of View & FunctionView class.
     """
 
     url_rule: str
@@ -30,9 +33,9 @@ class BaseView(ABC):
     Endpoint name for the view.
     """
 
-    methods: Tuple[str]
+    methods: Tuple[str] = ('GET', 'HEAD', 'OPTIONS')
     """
-    Allows request methods.
+    Handled request methods.
     """
 
     @abstractmethod
@@ -53,18 +56,16 @@ class View(BaseView, ABC):
     def __init__(
             self, 
             url_rule: str,
-            renderer: RendererType,
-            methods: Optional[Tuple[str]] = None
+            *,
+            renderer: RendererType = default_renderer
         ) -> None:
         self.url_rule = url_rule
-        self.methods = methods or ('GET', 'POST')
         self._renderer = renderer
-
         self._resolver = self.resolver_class(self.handle)
 
         # Use full class name as endpoint
         cls = type(self)
-        self.endpoint = f'{cls.__module__}_{cls.__name__}'.replace('.', '_')
+        self.endpoint = f'{cls.__module__}_{cls.__name__}'.replace('.', '/')
 
     def __call__(self, *args: Any, **kwargs: Any) -> Response:
         call_args = self._resolver.resolve_args(*args, **kwargs)
@@ -79,13 +80,11 @@ class JsonView(View, ABC):
 
     def __init__(
             self, 
-            url_rule: str, 
-            methods: Optional[Tuple[str]] = None,
+            url_rule: str
         ) -> None:
         super().__init__(
             url_rule=url_rule, 
-            renderer=json, 
-            methods=methods
+            renderer=json_renderer
         )
 
 
@@ -94,11 +93,9 @@ class HtmlView(View, ABC):
     def __init__(
             self, 
             url_rule: str, 
-            template_name: str, 
-            methods: Optional[Tuple[str]] = None
+            template_name: str
         ) -> None:
         super().__init__(
             url_rule=url_rule, 
-            renderer=html(template_name),
-            methods=methods
+            renderer=make_html_renderer(template_name)
         )

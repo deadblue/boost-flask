@@ -3,10 +3,19 @@ __author__ = 'deadblue'
 import json as jsonlib
 from typing import Any, Callable
 
-from flask import Response, render_template
+from flask import (
+    Response, make_response, render_template
+)
 
 
 RendererType = Callable[[Any], Response]
+
+
+def default(result: Any) -> Response:
+    """
+    Default renderer, which directly calls `flask.make_response`.
+    """
+    return make_response(result)
 
 
 def json(result: Any) -> Response:

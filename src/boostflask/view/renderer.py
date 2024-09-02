@@ -11,11 +11,7 @@ from flask import (
 RendererType = Callable[[Any], Response]
 
 
-def default(result: Any) -> Response:
-    """
-    Default renderer, which directly calls `flask.make_response`.
-    """
-    return make_response(result)
+default = make_response
 
 
 def json(result: Any) -> Response:

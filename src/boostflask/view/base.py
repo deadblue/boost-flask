@@ -9,9 +9,7 @@ from flask import Response
 
 from .renderer import (
     RendererType, 
-    default as default_renderer, 
-    json as json_renderer, 
-    html as make_html_renderer
+    default, json, html
 )
 from .resolver import (
     Resolver, StandardResolver
@@ -57,7 +55,7 @@ class View(BaseView, ABC):
             self, 
             url_rule: str,
             *,
-            renderer: RendererType = default_renderer
+            renderer: RendererType = default
         ) -> None:
         self.url_rule = url_rule
         self._renderer = renderer
@@ -84,7 +82,7 @@ class JsonView(View, ABC):
         ) -> None:
         super().__init__(
             url_rule=url_rule, 
-            renderer=json_renderer
+            renderer=json
         )
 
 
@@ -97,5 +95,5 @@ class HtmlView(View, ABC):
         ) -> None:
         super().__init__(
             url_rule=url_rule, 
-            renderer=make_html_renderer(template_name)
+            renderer=html(template_name)
         )

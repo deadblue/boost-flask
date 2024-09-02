@@ -19,14 +19,13 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
     "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "flask~=3.0.0"
 ]

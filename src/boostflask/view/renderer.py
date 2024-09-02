@@ -3,10 +3,15 @@ __author__ = 'deadblue'
 import json as jsonlib
 from typing import Any, Callable
 
-from flask import Response, render_template
+from flask import (
+    Response, make_response, render_template
+)
 
 
 RendererType = Callable[[Any], Response]
+
+
+default = make_response
 
 
 def json(result: Any) -> Response:
@@ -41,7 +46,7 @@ class TemplateRenderer:
         self._mime_type = mime_type
 
     def __call__(self, result: Any) -> Response:
-        resp_body = render_template(self._template_name, **result)
+        resp_body = render_template(self._template_name, **result).encode()
         resp = Response(resp_body, status=200)
         resp.headers.update({
             'Content-Type': self._mime_type,

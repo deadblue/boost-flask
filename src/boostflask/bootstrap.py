@@ -3,17 +3,15 @@ __author__ = 'deadblue'
 import inspect
 import logging
 import pkgutil
-from typing import (
-    Dict, Generator, Tuple, Union
-)
-from types import ModuleType
-
+from typing import Dict, List, Type
+from types import ModuleType, TracebackType
 
 from flask import Flask
+from flask.typing import ResponseReturnValue
 
-from .config import (
-    ConfigType, put as put_config
-)
+from .config import ConfigType, put as put_config
+from .context import Context
+from .error_handler import ErrorHandler
 from .pool import ObjectPool
 from .view.base import BaseView
 from ._utils import (
@@ -61,25 +59,42 @@ class Bootstrap:
     """
 
     _op: ObjectPool
+    _ctxs: List[Context]
+    
     _app: Flask
-
-    _app_conf: Union[ConfigType, None] = None
-    _url_prefix: Union[str, None] = None
+    _app_conf: ConfigType | None = None
+    _url_prefix: str | None = None
 
     def __init__(
             self, app: Flask, 
             *,
-            app_conf: Union[ConfigType, None] = None,
-            url_prefix: Union[str, None] = None,
+            app_conf: ConfigType | None = None,
+            url_prefix: str | None = None,
         ) -> None:
         self._op = ObjectPool()
-        self._app = app
+        self._ctxs = []
 
+        self._app = app
         self._app_conf = app_conf
         if url_prefix is not None:
             self._url_prefix = url_prefix
 
-    def _scan_views(self, pkg: ModuleType) -> Generator[Tuple[str, BaseView], None, None]:
+    def _register_view(self, url_prefix: str, view_obj: BaseView):
+        url_rule = join_url_paths([
+            url_prefix,  view_obj.url_rule
+        ] if self._url_prefix is None else [
+            self._url_prefix, url_prefix, view_obj.url_rule
+        ])
+        # Register to app
+        self._app.add_url_rule(
+            rule=url_rule,
+            endpoint=view_obj.endpoint,
+            view_func=view_obj,
+            methods=view_obj.methods
+        )
+        _logger.info('Mount view %r => [%s]', view_obj, url_rule)
+
+    def _scan_app_package(self, pkg: ModuleType):
         _logger.debug('Scanning views under package: %s', pkg.__name__)
         for mi in pkgutil.walk_packages(
             path=pkg.__path__,
@@ -101,35 +116,64 @@ class Bootstrap:
                     if member.__module__ != mi.name: continue
                     # Skip abstract class
                     if inspect.isabstract(member): continue
-                    # Instantiate view and yield it
+                    # Handle useful classes
                     if issubclass(member, BaseView):
                         view_obj = self._op.get(member)
-                        yield (_get_url_path(mdl), view_obj)
+                        self._register_view(_get_url_path(mdl), view_obj)
+                    elif issubclass(member, Context):
+                        ctx_obj = self._op.get(member)
+                        self._ctxs.append(ctx_obj)
+                    elif issubclass(member, ErrorHandler):
+                        eh_obj = self._op.get(member)
+                        self._app.register_error_handler(
+                            eh_obj.error_class or Exception, eh_obj.handle
+                        )
                 elif isinstance(member, BaseView):
-                    yield (_get_url_path(mdl), member)
+                    self._register_view(_get_url_path(mdl), member)
+                elif isinstance(member, Context):
+                    self._ctxs.append(member)
 
     def __enter__(self) -> Flask:
         # Push config
         if self._app_conf is not None:
             put_config(self._app_conf)
+        # Register event functions
+        self._app.before_request(self._before_request)
+        self._app.teardown_request(self._teardown_request)
+        # Scan app package
         app_pkg = load_module(self._app.import_name)
         with self._app.app_context():
-            for mdl_url_path, view_obj in self._scan_views(app_pkg):
-                # Full URL rule
-                url_rule = join_url_paths([
-                    mdl_url_path,  view_obj.url_rule
-                ] if self._url_prefix is None else [
-                    self._url_prefix, mdl_url_path,  view_obj.url_rule
-                ])
-                # Register to app
-                self._app.add_url_rule(
-                    rule=url_rule,
-                    endpoint=view_obj.endpoint,
-                    view_func=view_obj,
-                    methods=view_obj.methods
-                )
-                _logger.info('Mount view %r => [%s]', view_obj, url_rule)
+            self._scan_app_package(app_pkg)
+        # Sort request context by order
+        if len(self._ctxs) > 0:
+            self._ctxs.sort(
+                key=lambda c:c.order, reverse=True
+            )
         return self._app
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(
+            self, 
+            exc_type: Type[BaseException] | None, 
+            exc_value: BaseException | None, 
+            traceback: TracebackType | None
+        ) -> None:
+        # Remove event functions
+        self._app.before_request_funcs.get(None).remove(self._before_request)
+        self._app.teardown_request_funcs.get(None).remove(self._teardown_request)
+        # TODO: Remove views which are registered in __enter__.
+        # Close object pool
         self._op.close()
+
+    def _before_request(self) -> ResponseReturnValue:
+        # Enter custom contexts
+        for ctx in self._ctxs:
+            ctx.__enter__()
+
+    def _teardown_request(self, exc_value: BaseException | None) -> None:
+        exc_type, tb = None, None
+        if exc_value is not None:
+            exc_type = type(exc_value)
+            tb = exc_type.__traceback__
+        # Exit custom contexts
+        for ctx in reversed(self._ctxs):
+            ctx.__exit__(exc_type, exc_value, tb)

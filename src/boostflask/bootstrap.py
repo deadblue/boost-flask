@@ -9,10 +9,9 @@ from types import ModuleType, TracebackType
 from flask import Flask
 from flask.typing import ResponseReturnValue
 
-from .config import (
-    ConfigType, put as put_config
-)
+from .config import ConfigType, put as put_config
 from .context import Context
+from .error_handler import ErrorHandler
 from .pool import ObjectPool
 from .view.base import BaseView
 from ._utils import (
@@ -124,6 +123,11 @@ class Bootstrap:
                     elif issubclass(member, Context):
                         ctx_obj = self._op.get(member)
                         self._ctxs.append(ctx_obj)
+                    elif issubclass(member, ErrorHandler):
+                        eh_obj = self._op.get(member)
+                        self._app.register_error_handler(
+                            eh_obj.error_class or Exception, eh_obj.handle
+                        )
                 elif isinstance(member, BaseView):
                     self._register_view(_get_url_path(mdl), member)
                 elif isinstance(member, Context):

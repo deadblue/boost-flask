@@ -3,13 +3,13 @@ __author__ = 'deadblue'
 import inspect
 import logging
 import pkgutil
-from typing import Dict, List, Type
+from typing import Any, Dict, List, Type
 from types import ModuleType, TracebackType
 
 from flask import Flask
 from flask.typing import ResponseReturnValue
 
-from .config import ConfigType, put as put_config
+from .config import _put_config
 from .context import (
     RequestContext, 
     _RequestContextManager,
@@ -62,24 +62,25 @@ class Bootstrap:
         url_prefix (str | None): URL prefix for all views.
     """
 
+    _app: Flask
     _op: ObjectPool
     _ctx_types: List[Type[RequestContext]]
     
-    _app: Flask
-    _app_conf: ConfigType | None = None
     _url_prefix: str | None = None
 
     def __init__(
             self, app: Flask, 
             *,
-            app_conf: ConfigType | None = None,
+            app_conf: Dict[str, Any] | None = None,
             url_prefix: str | None = None,
         ) -> None:
+        self._app = app
         self._op = ObjectPool()
         self._ctx_types = []
 
-        self._app = app
-        self._app_conf = app_conf
+        if app_conf is not None:
+            _put_config(app, app_conf)
+
         if url_prefix is not None:
             self._url_prefix = url_prefix
 
@@ -135,9 +136,6 @@ class Bootstrap:
                     self._register_view(_get_url_path(mdl), member)
 
     def __enter__(self) -> Flask:
-        # Push config
-        if self._app_conf is not None:
-            put_config(self._app_conf)
         # Register event functions
         self._app.before_request(self._before_request)
         self._app.teardown_request(self._teardown_request)

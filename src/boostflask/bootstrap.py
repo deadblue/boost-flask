@@ -10,7 +10,11 @@ from flask import Flask
 from flask.typing import ResponseReturnValue
 
 from .config import ConfigType, put as put_config
-from .context import Context
+from .context import (
+    RequestContext, 
+    _RequestContextManager,
+    _current_manager
+)
 from .error_handler import ErrorHandler
 from .pool import ObjectPool
 from .view.base import BaseView
@@ -59,7 +63,7 @@ class Bootstrap:
     """
 
     _op: ObjectPool
-    _ctxs: List[Context]
+    _ctx_types: List[Type[RequestContext]]
     
     _app: Flask
     _app_conf: ConfigType | None = None
@@ -72,7 +76,7 @@ class Bootstrap:
             url_prefix: str | None = None,
         ) -> None:
         self._op = ObjectPool()
-        self._ctxs = []
+        self._ctx_types = []
 
         self._app = app
         self._app_conf = app_conf
@@ -120,9 +124,8 @@ class Bootstrap:
                     if issubclass(member, BaseView):
                         view_obj = self._op.get(member)
                         self._register_view(_get_url_path(mdl), view_obj)
-                    elif issubclass(member, Context):
-                        ctx_obj = self._op.get(member)
-                        self._ctxs.append(ctx_obj)
+                    elif issubclass(member, RequestContext):
+                        self._ctx_types.append(member)
                     elif issubclass(member, ErrorHandler):
                         eh_obj = self._op.get(member)
                         self._app.register_error_handler(
@@ -130,8 +133,6 @@ class Bootstrap:
                         )
                 elif isinstance(member, BaseView):
                     self._register_view(_get_url_path(mdl), member)
-                elif isinstance(member, Context):
-                    self._ctxs.append(member)
 
     def __enter__(self) -> Flask:
         # Push config
@@ -145,8 +146,8 @@ class Bootstrap:
         with self._app.app_context():
             self._scan_app_package(app_pkg)
         # Sort request context by order
-        if len(self._ctxs) > 0:
-            self._ctxs.sort(
+        if len(self._ctx_types) > 0:
+            self._ctx_types.sort(
                 key=lambda c:c.order, reverse=True
             )
         return self._app
@@ -165,15 +166,17 @@ class Bootstrap:
         self._op.close()
 
     def _before_request(self) -> ResponseReturnValue:
-        # Enter custom contexts
-        for ctx in self._ctxs:
-            ctx.__enter__()
+        if len(self._ctx_types) == 0: return
+        req_ctx_mgr = _RequestContextManager()
+        for ctx_type in self._ctx_types:
+            req_ctx_mgr.add_context(self._op.create(ctx_type))
+        req_ctx_mgr.__enter__()
 
     def _teardown_request(self, exc_value: BaseException | None) -> None:
-        exc_type, tb = None, None
-        if exc_value is not None:
-            exc_type = type(exc_value)
-            tb = exc_type.__traceback__
-        # Exit custom contexts
-        for ctx in reversed(self._ctxs):
-            ctx.__exit__(exc_type, exc_value, tb)
+        req_ctx_mgr = _current_manager()
+        if req_ctx_mgr is not None:
+            exc_type, tb = None, None
+            if exc_value is not None:
+                exc_type = type(exc_value)
+                tb = exc_type.__traceback__
+            req_ctx_mgr.__exit__(exc_type, exc_value, tb)

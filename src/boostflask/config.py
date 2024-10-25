@@ -1,19 +1,20 @@
 __author__ = 'deadblue'
 
-from contextvars import ContextVar
 from typing import Any, Dict
 
+from flask import Flask, current_app
 
-ConfigType = Dict[str, Any]
 
-_config_var = ContextVar[ConfigType]('boostflask.config')
+_CONFIG_ROOT_NAME = 'BOOSTFLASK_CONFIG'
 
-def put(value: ConfigType):
-    _config_var.set(value)
 
-def get_value(name: str, def_value: Any = None) -> Any:
+def _put_config(app: Flask, config: Dict[str, Any]):
+    app.config[_CONFIG_ROOT_NAME] = config
+
+
+def get(name: str, def_value: Any = None) -> Any:
     """
-    Get config value
+    Get config value.
 
     Args:
         name (str): Config key
@@ -22,7 +23,7 @@ def get_value(name: str, def_value: Any = None) -> Any:
     Returns:
         Any: Config value.
     """
-    conf_val = _config_var.get({})
+    conf_val = current_app.config.get(_CONFIG_ROOT_NAME, {})
     keys = name.split('.')
     for key in keys:
         if isinstance(conf_val, Dict):

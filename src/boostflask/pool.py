@@ -73,12 +73,12 @@ class ObjectPool:
         cls_name = get_class_name(obj_cls)
         obj = self._registry.get(cls_name, None)
         if obj is None:
-            obj = self._create(obj_cls, dep_path)
+            obj = self.create(obj_cls, dep_path)
             # TODO: Add to registry
             self._registry[cls_name] = obj
         return obj
 
-    def _create(
+    def create(
             self, 
             obj_cls: Type[T], 
             dep_path: Union[Sequence[str], None] = None

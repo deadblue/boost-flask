@@ -7,6 +7,9 @@ from flask.typing import ResponseReturnValue
 
 
 class ErrorHandler(ABC):
+    """
+    Base class of custom error handler.
+    """
 
     error_class: Type[BaseException] | None = None
     """

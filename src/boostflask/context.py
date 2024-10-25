@@ -9,10 +9,12 @@ from types import TracebackType
 
 class RequestContext(AbstractContextManager, ABC):
     """
-    Base class for custom context.
+    Base class for custom request context.
 
-    All subclass instances will be entered when request starts, and will be 
-    exited when request teardowns.
+    Custom request context instance will be created for each request, it will be 
+    entered before request starts, and will be exited after request teardowns.
+
+    Dependency-injection is supported during instantiates custom request context, 
     """
 
     order: int = 0
@@ -68,6 +70,15 @@ def _current_manager() -> _RequestContextManager | None:
 
 
 def find_context(cls: Type[RequestContext]) -> RequestContext | None:
+    """
+    Find custom request context that is bound to current request.
+
+    Args:
+        cls (Type[RequestContext]): Request context type.
+    
+    Returns:
+        RequestContext: Request context instance or None.
+    """
     manager = _current_manager()
     if manager is not None:
         return manager.find_context(cls)

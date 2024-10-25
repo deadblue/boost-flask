@@ -19,6 +19,8 @@ from .resolver import (
 class BaseView(ABC):
     """
     BaseView is the parent class of View & FunctionView class.
+
+    This class is used internally, developer's views should derive from View.
     """
 
     url_rule: str
@@ -42,6 +44,9 @@ class BaseView(ABC):
 
 
 class View(BaseView, ABC):
+    """
+    Base view class for developer.
+    """
 
     resolver_class: ClassVar[Type[Resolver]] = StandardResolver
     """

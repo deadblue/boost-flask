@@ -12,9 +12,9 @@ def _put_config(app: Flask, config: Dict[str, Any]):
     app.config[_CONFIG_ROOT_NAME] = config
 
 
-def get_value(name: str, def_value: Any = None) -> Any:
+def get(name: str, def_value: Any = None) -> Any:
     """
-    Get config value
+    Get config value.
 
     Args:
         name (str): Config key

@@ -13,8 +13,7 @@ class View(JsonView):
 
     def __init__(self) -> None:
         super().__init__(
-            url_rule = '/view',
-            methods=('GET',)
+            url_rule = '/view'
         )
     
     def handle(self) -> Any:

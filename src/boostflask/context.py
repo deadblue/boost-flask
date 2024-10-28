@@ -3,7 +3,7 @@ __author__ = 'deadblue'
 from abc import ABC
 from contextlib import AbstractContextManager
 from contextvars import ContextVar, Token
-from typing import List, Type
+from typing import List, Type, TypeVar
 from types import TracebackType
 
 
@@ -69,15 +69,18 @@ def _current_manager() -> _RequestContextManager | None:
     return _cv_manager.get(None)
 
 
-def find_context(cls: Type[RequestContext]) -> RequestContext | None:
+ContextType = TypeVar('ContextType', bound=RequestContext)
+
+
+def find_context(cls: Type[ContextType]) -> ContextType | None:
     """
     Find custom request context that is bound to current request.
 
     Args:
-        cls (Type[RequestContext]): Request context type.
+        cls (Type[ContextType]): Request context type.
     
     Returns:
-        RequestContext: Request context instance or None.
+        ContextType: Context instance or None.
     """
     manager = _current_manager()
     if manager is not None:

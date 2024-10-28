@@ -32,7 +32,7 @@ def get_parent_module(mdl: ModuleType) -> ModuleType | None:
 def join_url_paths(paths: Sequence[str]) -> str:
     url_path = ''
     for path in paths:
-        if path == '': continue
+        if path is None or path == '': continue
         if path.endswith('/'):
             path = path.rstrip('/')
         if not path.startswith('/'):
@@ -57,16 +57,13 @@ class ModuleUrlResolver:
         cache_key = mdl.__name__
         if cache_key in self._cache:
             return self._cache.get(cache_key)
-        # Collect paths from modules
-        paths = []
-        m = mdl
-        while m is not None:
-            url_path = getattr(m, _MAGIC_URL_PATH, None)
-            if url_path is not None:
-                paths.append(url_path)
-            m = get_parent_module(m)
-        # Join paths
-        url_path = join_url_paths(reversed(paths)) if len(paths) > 0 else ''
-        # Put to cache
+        # Resolve module url path
+        url_path = getattr(mdl, _MAGIC_URL_PATH, '')
+        parent_mdl = get_parent_module(mdl)
+        if parent_mdl is not None:
+            url_path = join_url_paths([
+                self.get_url_path(parent_mdl), url_path
+            ])
+        # Save to cache
         self._cache[cache_key] = url_path
         return url_path

@@ -19,38 +19,14 @@ from .error_handler import ErrorHandler
 from .pool import ObjectPool
 from .view.base import BaseView
 from ._utils import (
+    ModuleUrlResolver,
     is_private_module,
     load_module,
-    get_parent_module,
     join_url_paths
 )
 
 
 _logger = logging.getLogger(__name__)
-
-
-_MAGIC_URL_PATH = '__url_path__'
-
-_module_url_path_cache: Dict[str, str] = {}
-
-def _get_url_path(mdl: ModuleType) -> str:
-    # Get from cache
-    cache_key = mdl.__name__
-    if cache_key in _module_url_path_cache:
-        return _module_url_path_cache.get(cache_key)
-    # Collect paths from modules
-    paths = []
-    m = mdl
-    while m is not None:
-        url_path = getattr(m, _MAGIC_URL_PATH, None)
-        if url_path is not None:
-            paths.append(url_path)
-        m = get_parent_module(m)
-    # Join paths
-    url_path = join_url_paths(reversed(paths)) if len(paths) > 0 else ''
-    # Put to cache
-    _module_url_path_cache[cache_key] = url_path
-    return url_path
 
 
 class Bootstrap:
@@ -69,18 +45,23 @@ class Bootstrap:
     _url_prefix: str | None = None
 
     def __init__(
-            self, app: Flask, 
+            self, 
+            app: Flask, 
             *,
             app_conf: Dict[str, Any] | None = None,
             url_prefix: str | None = None,
         ) -> None:
+        # Save app
         self._app = app
+        # Create object pool
         self._op = ObjectPool()
+        self._op.init_app(app)
+        # Context classes
         self._ctx_types = []
-
+        # Put config
         if app_conf is not None:
             _put_config(app, app_conf)
-
+        # Save global url prefix
         if url_prefix is not None:
             self._url_prefix = url_prefix
 
@@ -101,6 +82,7 @@ class Bootstrap:
 
     def _scan_app_package(self, pkg: ModuleType):
         _logger.debug('Scanning views under package: %s', pkg.__name__)
+        url_resolver = ModuleUrlResolver()
         for mi in pkgutil.walk_packages(
             path=pkg.__path__,
             prefix=f'{pkg.__name__}.'
@@ -124,7 +106,7 @@ class Bootstrap:
                     # Handle useful classes
                     if issubclass(member, BaseView):
                         view_obj = self._op.get(member)
-                        self._register_view(_get_url_path(mdl), view_obj)
+                        self._register_view(url_resolver.get_url_path(mdl), view_obj)
                     elif issubclass(member, RequestContext):
                         self._ctx_types.append(member)
                     elif issubclass(member, ErrorHandler):
@@ -133,7 +115,7 @@ class Bootstrap:
                             eh_obj.error_class or Exception, eh_obj.handle
                         )
                 elif isinstance(member, BaseView):
-                    self._register_view(_get_url_path(mdl), member)
+                    self._register_view(url_resolver.get_url_path(mdl), member)
 
     def __enter__(self) -> Flask:
         # Register event functions

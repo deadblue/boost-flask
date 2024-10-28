@@ -2,7 +2,7 @@ __author__ = 'deadblue'
 
 import importlib
 import sys
-from typing import Sequence, Type, Union
+from typing import Dict, Sequence, Type
 from types import ModuleType
 
 
@@ -22,7 +22,7 @@ def load_module(mdl_name: str) -> ModuleType:
         mdl = importlib.import_module(mdl_name)
     return mdl
 
-def get_parent_module(mdl: ModuleType) -> Union[ModuleType, None]:
+def get_parent_module(mdl: ModuleType) -> ModuleType | None:
     dot_index = mdl.__name__.rfind('.')
     if dot_index < 0:
         return None
@@ -40,3 +40,33 @@ def join_url_paths(paths: Sequence[str]) -> str:
         else:
             url_path += path
     return url_path
+
+
+_MAGIC_URL_PATH = '__url_path__'
+
+
+class ModuleUrlResolver:
+
+    _cache: Dict[str, str]
+
+    def __init__(self) -> None:
+        self._cache = {}
+    
+    def get_url_path(self, mdl: ModuleType) -> str:
+         # Get from cache
+        cache_key = mdl.__name__
+        if cache_key in self._cache:
+            return self._cache.get(cache_key)
+        # Collect paths from modules
+        paths = []
+        m = mdl
+        while m is not None:
+            url_path = getattr(m, _MAGIC_URL_PATH, None)
+            if url_path is not None:
+                paths.append(url_path)
+            m = get_parent_module(m)
+        # Join paths
+        url_path = join_url_paths(reversed(paths)) if len(paths) > 0 else ''
+        # Put to cache
+        self._cache[cache_key] = url_path
+        return url_path

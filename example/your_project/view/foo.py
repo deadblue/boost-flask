@@ -16,8 +16,7 @@ class IndexView(JsonView):
             foo_service: FooService
         ) -> None:
         super().__init__(
-            url_rule = '/foo', 
-            methods = ('GET', )
+            url_rule = '/foo',
         )
         # Inject FooService
         self._foo_service = foo_service

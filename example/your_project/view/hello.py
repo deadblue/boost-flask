@@ -9,8 +9,7 @@ class HelloView(JsonView):
 
     def __init__(self) -> None:
         super().__init__(
-            url_rule='/hello',
-            methods=('GET', )
+            url_rule='/hello'
         )
     
     def handle(self, name: str = 'world') -> Any:

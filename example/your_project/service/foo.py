@@ -13,7 +13,7 @@ class FooService:
 
     def __init__(self) -> None:
         # Get config value
-        self._bar = config.get_value('foo.bar')
+        self._bar = config.get('foo.bar')
 
     def get_bar(self) -> int:
         return self._bar

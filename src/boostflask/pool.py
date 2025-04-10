@@ -3,9 +3,11 @@ __author__ = 'deadblue'
 import inspect
 import logging
 from typing import (
-    Any, Dict, Protocol, Sequence, Type, TypeVar, Union, 
+    Any, Dict, Protocol, Sequence, Type, TypeVar, 
     runtime_checkable
 )
+
+from flask import Flask, current_app
 
 from ._utils import get_class_name
 
@@ -34,6 +36,9 @@ class Closeable(Protocol):
     def close(self) -> None: pass
 
 
+_EXTENSION_NAME = 'flask_objectpool'
+
+
 class ObjectPool:
 
     _registry: Dict[str, Any]
@@ -41,6 +46,10 @@ class ObjectPool:
     def __init__(self) -> None:
         # Initialize registry
         self._registry = {}
+
+    def init_app(self, app: Flask):
+        # Register pool as flask extension
+        app.extensions[_EXTENSION_NAME] = self
 
     def put(self, *objs: Any):
         """
@@ -53,35 +62,46 @@ class ObjectPool:
             key = get_class_name(type(obj))
             self._registry[key] = obj
 
-    def get(self, obj_cls: Type[T]) -> Union[T, None]:
+    def get(self, obj_cls: Type[T]) -> T:
         """
-        Lookup object instance of given type, instantiate one when not found.
+        Lookup instance of given class, instantiate one when not found.
 
         Args:
-            obj_cls (Type[T]): Object type.
+            obj_cls (Type[T]): Object class.
         
         Returns:
             T: Object instance.
         """
         return self._lookup(obj_cls)
 
+    def create(self, obj_cls: Type[T]) -> T:
+        """
+        Create instance of given class, without caching it.
+
+        Args:
+            obj_cls (Type[T]): Object class.
+
+        Returns:
+            T: Object instance.
+        """
+        return self._instantiate(obj_cls)
+
     def _lookup(
             self, 
             obj_cls: Type[T],
-            dep_path: Union[Sequence[str], None] = None
-        ) -> Union[T, None]:
+            dep_path: Sequence[str] | None = None
+        ) -> T:
         cls_name = get_class_name(obj_cls)
         obj = self._registry.get(cls_name, None)
         if obj is None:
-            obj = self.create(obj_cls, dep_path)
-            # TODO: Add to registry
+            obj = self._instantiate(obj_cls, dep_path)
             self._registry[cls_name] = obj
         return obj
 
-    def create(
+    def _instantiate(
             self, 
             obj_cls: Type[T], 
-            dep_path: Union[Sequence[str], None] = None
+            dep_path: Sequence[str] | None = None
         ) -> T:
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug('Instantiating object: %s', get_class_name(obj_cls))
@@ -121,3 +141,13 @@ class ObjectPool:
                     _logger.warning('Close object %s failed ...', name)
         # Remove all objects
         self._registry.clear()
+
+
+def current_pool() -> ObjectPool | None:
+    """
+    Return ObjectPool instance bound to current app.
+
+    Returns:
+        ObjectPool: ObjectPool instance.
+    """
+    return current_app.extensions.get(_EXTENSION_NAME, None)

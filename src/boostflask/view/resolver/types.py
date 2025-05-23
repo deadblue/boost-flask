@@ -2,7 +2,9 @@ __author__ = 'deadblue'
 
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import (
+    Any, Dict
+)
 
 
 class RequestBody(ABC):

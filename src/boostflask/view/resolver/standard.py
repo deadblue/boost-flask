@@ -6,6 +6,7 @@ from typing import Any, Dict
 from flask import request
 
 from .base import Resolver
+from .types import RequestBody
 from ._utils import (
     cast_value, snake_to_camel
 )
@@ -53,24 +54,33 @@ class StandardResolver(Resolver):
             self._resolve_args_from_request(call_args, positional_args_count)
         return call_args
 
-    def _resolve_args_from_request(self, call_args: Dict[str, Any], skip_count:int):
+    def _resolve_args_from_request(
+            self, 
+            call_args: Dict[str, Any], 
+            skip_count: int
+        ):
         # Parse HTTP form
         form = request.form if request.mimetype in _FORM_MIME_TYPES else {}
-        # json: Dict[str, Any] = request.json if request.is_json else {}
         # Fill call args
         for ha in self._handler_args[skip_count:]:
             # Skip already set argument
-            if ha.name in call_args: continue
-
+            if ha.name in call_args:
+                continue
+            # Handle special argument type
+            if issubclass(ha.type_, RequestBody):
+                arg_value = ha.type_()
+                arg_value.set_body(request.data)
+                call_args[ha.name] = arg_value
+                continue
+            # Resolve argument from request
             arg_alias = snake_to_camel(ha.name)
             arg_value = None
-
-            # Search argument from querystring
+            # Search from querystring
             if ha.name in request.args:
                 arg_value = request.args.get(ha.name)
             elif arg_alias in request.args:
                 arg_value = request.args.get(arg_alias)
-            # Search argument from HTTP form
+            # Search from form
             if ha.name in form:
                 arg_value = form.get(ha.name)
             elif arg_alias in form:
@@ -78,4 +88,4 @@ class StandardResolver(Resolver):
             # Cast argument value
             if arg_value is not None:
                 call_args[ha.name] = cast_value(arg_value, ha.type_)
-        # TODO: Support files & json
+            # TODO: Support files

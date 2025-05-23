@@ -6,7 +6,9 @@ from typing import Any, Dict
 from flask import request
 
 from .base import Resolver
-from .types import RequestBody
+from .types import (
+    RequestBody, is_request_body_type
+)
 from ._utils import (
     cast_value, snake_to_camel
 )
@@ -67,8 +69,8 @@ class StandardResolver(Resolver):
             if ha.name in call_args:
                 continue
             # Handle special argument type
-            if issubclass(ha.type_, RequestBody):
-                arg_value = ha.type_()
+            if is_request_body_type(ha.type_):
+                arg_value: RequestBody = ha.type_()
                 arg_value.set_body(request.data)
                 call_args[ha.name] = arg_value
                 continue

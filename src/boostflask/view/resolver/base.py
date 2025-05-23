@@ -5,14 +5,14 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import (
-    Any, Callable, Dict, List, Type
+    Any, Callable, Dict, List
 )
 
 
 @dataclass
 class HandlerArg:
     name: str
-    type_: Type | None
+    type_: Any
 
 
 class Resolver(ABC):

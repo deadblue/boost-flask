@@ -5,10 +5,9 @@ from typing import Any, Dict
 
 from flask import request
 
+from boostflask._typing import is_subclass
 from .base import Resolver
-from .types import (
-    RequestBody, is_request_body_type
-)
+from .types import RequestBody
 from ._utils import (
     cast_value, snake_to_camel
 )
@@ -69,7 +68,7 @@ class StandardResolver(Resolver):
             if ha.name in call_args:
                 continue
             # Handle special argument type
-            if is_request_body_type(ha.type_):
+            if is_subclass(ha.type_, RequestBody):
                 arg_value: RequestBody = ha.type_()
                 arg_value.set_body(request.data)
                 call_args[ha.name] = arg_value

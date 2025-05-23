@@ -64,7 +64,9 @@ class View(BaseView, ABC):
         ) -> None:
         self.url_rule = url_rule
         self._renderer = renderer
-        self._resolver = self.resolver_class(self.handle)
+        # Instantiate argument resolver
+        self._resolver = self.resolver_class()
+        self._resolver.parse_handler(self.handle)
 
         # Use full class name as endpoint
         cls = type(self)

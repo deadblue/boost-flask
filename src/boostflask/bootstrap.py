@@ -11,12 +11,15 @@ from flask.typing import ResponseReturnValue
 
 from .config import _put_config
 from .context import (
+    BaseContext, 
+    CommonContext, 
     RequestContext, 
-    _RequestContextManager,
-    _current_manager
+    TaskContext, 
+    _ContextManager
 )
 from .error_handler import ErrorHandler
 from .pool import ObjectPool
+from .task import TaskExecutor
 from .view.base import BaseView
 from ._utils import (
     ModuleUrlResolver,
@@ -40,7 +43,7 @@ class Bootstrap:
 
     _app: Flask
     _op: ObjectPool
-    _ctx_types: List[Type[RequestContext]]
+    _ctx_types: List[Type[BaseContext]]
     
     _url_prefix: str | None = None
 
@@ -107,7 +110,7 @@ class Bootstrap:
                     if issubclass(member, BaseView):
                         view_obj = self._op.get(member)
                         self._register_view(url_resolver.get_url_path(mdl), view_obj)
-                    elif issubclass(member, RequestContext):
+                    elif issubclass(member, BaseContext):
                         self._ctx_types.append(member)
                     elif issubclass(member, ErrorHandler):
                         eh_obj = self._op.get(member)
@@ -124,7 +127,13 @@ class Bootstrap:
         # Scan app package
         app_pkg = load_module(self._app.import_name)
         with self._app.app_context():
+            # Scan classes
             self._scan_app_package(app_pkg)
+            # Setup task executor
+            te = self._op.get(TaskExecutor)
+            for ctx_type in self._ctx_types:
+                if issubclass(ctx_type, (CommonContext, TaskContext)):
+                    te.add_context_type(ctx_type)
         # Sort request context by order
         if len(self._ctx_types) > 0:
             self._ctx_types.sort(
@@ -147,16 +156,18 @@ class Bootstrap:
 
     def _before_request(self) -> ResponseReturnValue:
         if len(self._ctx_types) == 0: return
-        req_ctx_mgr = _RequestContextManager()
+        # Enter request contexts
+        ctx_mgr = _ContextManager()
         for ctx_type in self._ctx_types:
-            req_ctx_mgr.add_context(self._op.create(ctx_type))
-        req_ctx_mgr.__enter__()
+            if not issubclass(ctx_type, (CommonContext, RequestContext)): continue
+            ctx_mgr.add_context(self._op.create(ctx_type))
+        ctx_mgr.__enter__()
 
     def _teardown_request(self, exc_value: BaseException | None) -> None:
-        req_ctx_mgr = _current_manager()
-        if req_ctx_mgr is not None:
+        ctx_mgr = _ContextManager.current()
+        if ctx_mgr is not None:
             exc_type, tb = None, None
             if exc_value is not None:
                 exc_type = type(exc_value)
                 tb = exc_type.__traceback__
-            req_ctx_mgr.__exit__(exc_type, exc_value, tb)
+            ctx_mgr.__exit__(exc_type, exc_value, tb)

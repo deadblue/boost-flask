@@ -7,14 +7,13 @@ from typing import List, Type, TypeVar
 from types import TracebackType
 
 
-class RequestContext(AbstractContextManager, ABC):
+class BaseContext(AbstractContextManager, ABC):
     """
-    Base class for custom request context.
+    Base context class that will be entered before request or task starts, and 
+    be exited after request or task ends.
 
-    Custom request context instance will be created for each request, it will be 
-    entered before request starts, and will be exited after request teardowns.
-
-    Dependency-injection is supported during instantiates custom request context, 
+    Context will be instantiated for each enter-exit loop, the instance will be
+    released after loop.
     """
 
     order: int = 0
@@ -22,21 +21,42 @@ class RequestContext(AbstractContextManager, ABC):
     Context order, bigger one will be entered earlier, and existed later.
     """
 
-    ...
+    pass
 
 
-class _RequestContextManager(AbstractContextManager):
+class CommonContext(BaseContext, ABC):
+    """
+    Base class for common context that will be entered both in request and task.
+    """
+    pass
 
-    _ctxs: List[RequestContext]
+
+class RequestContext(BaseContext, ABC):
+    """
+    Base class for request-only context.
+    """
+    pass
+
+
+class TaskContext(BaseContext, ABC):
+    """
+    Base class for task-only context.
+    """
+    pass
+
+
+class _ContextManager(AbstractContextManager):
+
+    _ctxs: List[BaseContext]
     _token: Token | None = None
 
     def __init__(self) -> None:
         self._ctxs = []
     
-    def add_context(self, ctx: RequestContext):
+    def add_context(self, ctx: BaseContext):
         self._ctxs.append(ctx)
 
-    def find_context(self, cls: Type[RequestContext]) -> RequestContext:
+    def find_context(self, cls: Type[BaseContext]) -> BaseContext:
         for ctx in self._ctxs:
             if type(ctx) is cls:
                 return ctx
@@ -61,15 +81,15 @@ class _RequestContextManager(AbstractContextManager):
         # Reset ContextVar
         _cv_manager.reset(self._token)
 
-
-_cv_manager = ContextVar[_RequestContextManager]('boostflask.request_context_manager')
-
-
-def _current_manager() -> _RequestContextManager | None:
-    return _cv_manager.get(None)
+    @classmethod
+    def current(cls) -> '_ContextManager':
+        return _cv_manager.get(None)
 
 
-ContextType = TypeVar('ContextType', bound=RequestContext)
+_cv_manager = ContextVar[_ContextManager]('boostflask.context_manager')
+
+
+ContextType = TypeVar('ContextType', bound=BaseContext)
 
 
 def find_context(cls: Type[ContextType]) -> ContextType | None:
@@ -82,7 +102,7 @@ def find_context(cls: Type[ContextType]) -> ContextType | None:
     Returns:
         ContextType: Context instance or None.
     """
-    manager = _current_manager()
+    manager = _ContextManager.current()
     if manager is not None:
         return manager.find_context(cls)
     return None

@@ -19,13 +19,13 @@ class TaskExecutor:
 
     _pool: ObjectPool
 
-    def __init__(self, max_workers: int = 8) -> None:
-        self._ctx_types = []
+    def __init__(self, pool: ObjectPool, max_workers: int = 8) -> None:
+        self._pool = pool
         self._executor = ThreadPoolExecutor(
             max_workers=max_workers,
-            thread_name_prefix='boostflask-worker-'
+            thread_name_prefix='boostflask-worker'
         )
-        self._pool = current_pool()
+        self._ctx_types = []
 
     def add_context_type(self, ctx_type: Type[BaseContext]):
         self._ctx_types.append(ctx_type)

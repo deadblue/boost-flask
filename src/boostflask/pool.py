@@ -125,9 +125,12 @@ class ObjectPool:
         for i in range(required_args_num):
             arg_name = init_spec.args[i+1]
             arg_cls = init_spec.annotations.get(arg_name, None)
-            # TODO: Handle Union type
+            # TODO: Should we support union type?
+            # TODO: Read config value when arg_cls is a primitive types.
             if arg_cls is None:
                 raise TypelessArgumentError(obj_cls, arg_name)
+            elif issubclass(arg_cls, ObjectPool):
+                kwargs[arg_name] = self
             else:
                 kwargs[arg_name] = self._lookup(arg_cls, next_dep_path)
         return obj_cls(**kwargs)

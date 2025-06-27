@@ -18,8 +18,14 @@ def _main():
         url_prefix='/api',
         # App config
         app_conf={
-            'foo': {
-                'bar': 123456
+            'your_project': {
+                'service': {
+                    'foo': {
+                        'foo_service': {
+                            'bar': 123
+                        }
+                    }
+                }
             }
         }
     ) as app:

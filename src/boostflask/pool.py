@@ -10,6 +10,7 @@ from typing import (
 from flask import Flask, current_app
 
 from ._config import ConfigManager
+from ._typing import is_instance
 from ._utils import get_class_name
 
 
@@ -130,7 +131,7 @@ class ObjectPool:
             # Type-checking for argument value
             if arg_value is not None and \
                 (spec.annotation is not spec.empty) and \
-                (not isinstance(arg_value, spec.annotation)):
+                (not is_instance(arg_value, spec.annotation)):
                 arg_value = None
             if arg_value is None:
                 # Skip argument with default value

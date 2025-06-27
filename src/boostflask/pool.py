@@ -9,6 +9,7 @@ from typing import (
 
 from flask import Flask, current_app
 
+from ._config import ConfigManager
 from ._utils import get_class_name
 
 
@@ -41,10 +42,11 @@ _EXTENSION_NAME = 'flask_objectpool'
 
 class ObjectPool:
 
+    _cm: ConfigManager
     _registry: Dict[str, Any]
 
-    def __init__(self) -> None:
-        # Initialize registry
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
+        self._cm = ConfigManager(data=config)
         self._registry = {}
 
     def init_app(self, app: Flask):
@@ -110,30 +112,42 @@ class ObjectPool:
         if dep_path is not None and cls_name in dep_path:
             raise CircularReferenceError()
 
-        init_spec = inspect.getfullargspec(obj_cls.__init__)
-        required_args_num = len(init_spec.args) - 1
-        if init_spec.defaults is not None:
-            required_args_num -= len(init_spec.defaults)
-        if required_args_num == 0:
-            return obj_cls()
-
         next_dep_path = (cls_name, )
         if dep_path is not None:
             next_dep_path = dep_path + next_dep_path
 
-        kwargs = {}
-        for i in range(required_args_num):
-            arg_name = init_spec.args[i+1]
-            arg_cls = init_spec.annotations.get(arg_name, None)
-            # TODO: Should we support union type?
-            # TODO: Read config value when arg_cls is a primitive types.
-            if arg_cls is None:
-                raise TypelessArgumentError(obj_cls, arg_name)
-            elif issubclass(arg_cls, ObjectPool):
-                kwargs[arg_name] = self
+        # Prepare arguments for init method
+        args, kwargs = [], {}
+        obj_conf = self._cm.get_object_config(obj_cls)
+        # Parse init method
+        init_sign = inspect.signature(obj_cls.__init__)
+        for index, (arg_name, spec) in enumerate(init_sign.parameters.items()):
+            # Skip `self` argument
+            if index == 0: continue
+            if spec.kind in (spec.VAR_POSITIONAL, spec.VAR_KEYWORD): continue
+            # Try config value first
+            arg_value = None if obj_conf is None else obj_conf.get(arg_name, None)
+            # Type-checking for argument value
+            if arg_value is not None and \
+                (spec.annotation is not spec.empty) and \
+                (not isinstance(arg_value, spec.annotation)):
+                arg_value = None
+            if arg_value is None:
+                # Skip argument with default value
+                if spec.default is not spec.empty: continue
+                # Prepare argument value
+                if spec.annotation is spec.empty:
+                    raise TypelessArgumentError(obj_cls, arg_name)
+                elif issubclass(spec.annotation, ObjectPool):
+                    arg_value = self
+                else:
+                    arg_value = self._lookup(spec.annotation, next_dep_path)
+            # Put arg_value
+            if spec.kind in (spec.POSITIONAL_ONLY, spec.POSITIONAL_OR_KEYWORD):
+                args.append(arg_value)
             else:
-                kwargs[arg_name] = self._lookup(arg_cls, next_dep_path)
-        return obj_cls(**kwargs)
+                kwargs[arg_name] = arg_value
+        return obj_cls(*args, **kwargs)
 
     def close(self):
         for name, obj in self._registry.items():

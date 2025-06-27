@@ -9,7 +9,6 @@ from types import ModuleType, TracebackType
 from flask import Flask
 from flask.typing import ResponseReturnValue
 
-from .config import _put_config
 from .context import (
     BaseContext, 
     CommonContext, 
@@ -57,13 +56,10 @@ class Bootstrap:
         # Save app
         self._app = app
         # Create object pool
-        self._op = ObjectPool()
+        self._op = ObjectPool(config=app_conf)
         self._op.init_app(app)
         # Context classes
         self._ctx_types = []
-        # Put config
-        if app_conf is not None:
-            _put_config(app, app_conf)
         # Save global url prefix
         if url_prefix is not None:
             self._url_prefix = url_prefix

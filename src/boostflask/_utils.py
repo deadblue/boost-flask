@@ -1,6 +1,7 @@
 __author__ = 'deadblue'
 
 import importlib
+import re
 import sys
 from typing import Dict, Sequence, Type
 from types import ModuleType
@@ -10,11 +11,18 @@ def get_class_name(cls: Type) -> str:
     return f'{cls.__module__}.{cls.__name__}'
 
 
+def to_snake(name: str) -> str:
+    snake = re.sub(r'(.)([A-Z][a-z])', r'\1_\2', name)
+    snake = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', snake)
+    return snake.lower()
+
+
 def is_private_module(mdl_name: str) -> bool:
     for part in reversed(mdl_name.split('.')):
         if part.startswith('_'):
             return True
     return False
+
 
 def load_module(mdl_name: str) -> ModuleType:
     mdl = sys.modules.get(mdl_name, None)
@@ -22,12 +30,14 @@ def load_module(mdl_name: str) -> ModuleType:
         mdl = importlib.import_module(mdl_name)
     return mdl
 
+
 def get_parent_module(mdl: ModuleType) -> ModuleType | None:
     dot_index = mdl.__name__.rfind('.')
     if dot_index < 0:
         return None
     parent_mdl_name = mdl.__name__[:dot_index]
     return load_module(parent_mdl_name)
+
 
 def join_url_paths(paths: Sequence[str]) -> str:
     url_path = ''

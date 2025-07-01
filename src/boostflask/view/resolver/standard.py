@@ -5,12 +5,11 @@ from typing import Any, Dict
 
 from flask import request
 
-from boostflask._typing import is_subclass
+from boostflask._typing import is_subclass, cast_value
+from boostflask._utils import to_camel
 from .base import Resolver
 from .types import RequestBody
-from ._utils import (
-    cast_value, snake_to_camel
-)
+
 
 
 _MIME_TYPE_URLENCODED_FORM = 'application/x-www-form-urlencoded'
@@ -74,7 +73,7 @@ class StandardResolver(Resolver):
                 call_args[ha.name] = arg_value
                 continue
             # Resolve argument from request
-            arg_alias = snake_to_camel(ha.name)
+            arg_alias = to_camel(ha.name)
             arg_value = None
             # Search from querystring
             if ha.name in request.args:

@@ -11,6 +11,16 @@ def get_class_name(cls: Type) -> str:
     return f'{cls.__module__}.{cls.__name__}'
 
 
+def to_camel(name: str) -> str:
+    parts = name.split('_')
+    if len(parts) == 1:
+        return name
+    return ''.join(map(
+        lambda index, name: name if index == 0 else name.capitalize(),
+        enumerate(parts)
+    ))
+
+
 def to_snake(name: str) -> str:
     snake = re.sub(r'(.)([A-Z][a-z])', r'\1_\2', name)
     snake = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', snake)
